@@ -70,7 +70,7 @@ check "wallet config exists" test -f "$WALLET_CONF"
 check "node config exists"   test -f "$NODE_CONF"
 # Peer discovery is handled by the HTTPS seeders compiled into chaincfg, so the
 # generated config must not pin any hardcoded peers.
-check "node config has no hardcoded addpeer" bash -c '! grep -q "^addpeer=" "$0"' "$NODE_CONF"
+check "node config has no hardcoded addpeer" test "$(grep -c '^addpeer=' "$NODE_CONF")" -eq 0
 
 # Permissions: file mode should be 600 (owner read/write only)
 wallet_mode="$(stat -f '%Lp' "$WALLET_CONF" 2>/dev/null || stat -c '%a' "$WALLET_CONF")"
