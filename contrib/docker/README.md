@@ -85,7 +85,7 @@ concrete value.
    make it easy to reference later and exposing its peer-to-peer port:
 
    ```sh
-   $ VAR_MAINNET_P2P_PORT=9108
+   $ VAR_MAINNET_P2P_PORT=9508
    $ VAR_CONTAINER_NAME="mond"
    $ docker run -d --read-only \
      --name "${VAR_CONTAINER_NAME}" \

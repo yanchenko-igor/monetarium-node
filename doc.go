@@ -100,8 +100,8 @@ Application Options:
 	                             without also specifying listen interfaces via
 	                             --listen
 	    --listen=                Add an interface/port to listen for connections
-	                             (default all interfaces port: 9108, testnet:
-	                             19108)
+	                             (default all interfaces port: 9508, testnet:
+	                             19508)
 	    --maxsameip=             Max number of connections with the same IP -- 0
 	                             to disable (default: 5)
 	    --maxpeers=              Max number of inbound and outbound peers

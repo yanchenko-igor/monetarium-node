@@ -39,6 +39,7 @@ type HttpsSeederFilters struct {
 	hasPver      bool
 	services     wire.ServiceFlag
 	hasServices  bool
+	full         bool
 }
 
 // SeedFilterIPVersion configures a request to an HTTPS seeder to filter all
@@ -70,6 +71,18 @@ func SeedFilterServices(services wire.ServiceFlag) func(f *HttpsSeederFilters) {
 	return func(f *HttpsSeederFilters) {
 		f.services = services
 		f.hasServices = true
+	}
+}
+
+// SeedFilterFull configures a request to an HTTPS seeder to return the full
+// set of good peers instead of the reduced set the seeder returns by default.
+//
+// The reduced default omits every address that is not an IP address, which
+// means Tor onion addresses are only ever reported when this filter is set.
+// The HTTPS seeder may choose to ignore this request.
+func SeedFilterFull() func(f *HttpsSeederFilters) {
+	return func(f *HttpsSeederFilters) {
+		f.full = true
 	}
 }
 
@@ -120,6 +133,9 @@ func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...f
 	if seederFilters.hasServices {
 		servicesStr := strconv.FormatUint(uint64(seederFilters.services), 10)
 		queryParams.Add("services", servicesStr)
+	}
+	if seederFilters.full {
+		queryParams.Add("full", "1")
 	}
 	req.URL.RawQuery = queryParams.Encode()
 
