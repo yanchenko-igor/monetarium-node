@@ -199,12 +199,7 @@ func TestSeedAddrsFilters(t *testing.T) {
 	}
 }
 
-// TestSeedAddrsOnionHostDropped documents the current limitation that onion
-// addresses served by a seeder are reported but discarded because an address can
-// currently only be represented as an IP.  Tor v3 address support in the address
-// manager and ADDRV2 are required before these entries become usable, so this
-// test pins the behavior until then.
-func TestSeedAddrsOnionHostDropped(t *testing.T) {
+func TestSeedAddrsReturnsTorV3OnionAddress(t *testing.T) {
 	const respBody = `{"host":"xtjxdav6eckeyyar6f2vutmbfdo4ygluxlcswlysnul4sqztjcesuiyd.onion:9508","services":1,"pver":13}`
 
 	server, _ := newSeedTestServer(t, respBody)
@@ -218,8 +213,14 @@ func TestSeedAddrsOnionHostDropped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(addrs) != 0 {
-		t.Fatalf("expected onion address to be dropped, got %d addresses",
-			len(addrs))
+	if len(addrs) != 1 {
+		t.Fatalf("expected onion address, got %d addresses", len(addrs))
+	}
+	if addrs[0].Type != wire.TorV3Address {
+		t.Fatalf("unexpected address type: got %v, want TorV3", addrs[0].Type)
+	}
+	if len(addrs[0].EncodedAddr) != 32 {
+		t.Fatalf("unexpected onion payload length: got %d, want 32",
+			len(addrs[0].EncodedAddr))
 	}
 }

@@ -7,16 +7,19 @@ package connmgr
 
 import (
 	"context"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/monetarium/monetarium-node/crypto/rand"
 	"github.com/monetarium/monetarium-node/wire"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -105,7 +108,7 @@ type node struct {
 // The available filters can be set via the exported functions that start with
 // the prefix SeedFilter.  See the documentation for each function for more
 // details.
-func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...func(f *HttpsSeederFilters)) ([]*wire.NetAddress, error) {
+func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...func(f *HttpsSeederFilters)) ([]wire.NetAddressV2, error) {
 	// Set any caller provided filters.
 	var seederFilters HttpsSeederFilters
 	for _, f := range filters {
@@ -179,7 +182,7 @@ func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...f
 	}
 
 	// Convert the response to net addresses.
-	addrs := make([]*wire.NetAddress, 0, len(nodes))
+	addrs := make([]wire.NetAddressV2, 0, len(nodes))
 	for _, node := range nodes {
 		host, portStr, err := net.SplitHostPort(node.Host)
 		if err != nil {
@@ -191,19 +194,27 @@ func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...f
 			log.Warnf("seeder returned invalid port %q", node.Host)
 			continue
 		}
-		ip := net.ParseIP(host)
-		if ip == nil {
-			log.Warnf("seeder returned a hostname that is not an IP address %q",
-				host)
-			continue
-		}
-
 		// Set the timestamp to a value randomly selected between 3 and 7 days
 		// ago in order to improve the ranking of peers discovered from seeders
 		// since they are a more authoritative source than other random peers.
 		ts := time.Now().Add(-1 * (duration3Days + rand.Duration(duration4Days)))
-		na := wire.NewNetAddressTimestamp(ts, wire.ServiceFlag(node.Services),
-			ip, uint16(port))
+		services := wire.ServiceFlag(node.Services)
+		addrType, addrBytes := encodeSeedHost(host)
+		var na wire.NetAddressV2
+		switch addrType {
+		case wire.IPv4Address:
+			na = wire.NewNetAddressV2(wire.IPv4Address, addrBytes,
+				uint16(port), ts, services)
+		case wire.IPv6Address:
+			na = wire.NewNetAddressV2(wire.IPv6Address, addrBytes,
+				uint16(port), ts, services)
+		case wire.TorV3Address:
+			na = wire.NewNetAddressV2(wire.TorV3Address, addrBytes,
+				uint16(port), ts, services)
+		default:
+			log.Warnf("seeder returned an unsupported hostname %q", host)
+			continue
+		}
 		addrs = append(addrs, na)
 	}
 
@@ -215,4 +226,28 @@ func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...f
 	}
 
 	return addrs, nil
+}
+
+func encodeSeedHost(host string) (wire.NetAddressType, []byte) {
+	if len(host) == 62 && strings.HasSuffix(host, ".onion") {
+		payload, err := base32.StdEncoding.WithPadding(base32.NoPadding).
+			DecodeString(strings.ToUpper(host[:56]))
+		if err == nil && len(payload) == 35 && payload[34] == 3 {
+			input := append([]byte(".onion checksum"), payload[:32]...)
+			input = append(input, 3)
+			digest := sha3.Sum256(input)
+			if string(payload[32:34]) == string(digest[:2]) {
+				return wire.TorV3Address, payload[:32]
+			}
+		}
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return wire.UnknownAddressType, nil
+	}
+	if ipv4 := ip.To4(); ipv4 != nil {
+		return wire.IPv4Address, ipv4
+	}
+	return wire.IPv6Address, ip.To16()
 }
