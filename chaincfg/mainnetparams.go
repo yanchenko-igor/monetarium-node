@@ -84,8 +84,9 @@ func MainNetParams() *Params {
 		Name:        "mainnet",
 		Net:         wire.MainNet,
 		DefaultPort: "9508",
-		// DNSSeeds disabled - Monetarium uses manual peer connections for bootstrap
-		DNSSeeds: []DNSSeed{},
+		// DNSSeeds is deprecated and unused; peer discovery is handled by the
+		// HTTPS seeders configured below.
+		DNSSeeds: nil,
 
 		// Chain parameters
 		GenesisBlock:         &genesisBlock,
@@ -570,9 +571,8 @@ func MainNetParams() *Params {
 		TreasuryVoteRequiredMultiplier: 3, // 60% yes votes required
 		TreasuryVoteRequiredDivisor:    5,
 
-		// HTTP seeders - Disabled until proper DNS seeder is deployed
-		// Use --addpeer=176.113.164.216:9108 to connect to the genesis node
-		seeders: []string{},
+		// HTTPS seeders used for peer discovery.
+		seeders: []string{"seed.monetarium.online"},
 
 		// SKA coin type configurations for multiple coin support
 		SKACoins: map[cointype.CoinType]*SKACoinConfig{

@@ -74,8 +74,9 @@ func TestNet3Params() *Params {
 		Name:        "testnet3",
 		Net:         wire.TestNet3,
 		DefaultPort: "19508",
-		// DNSSeeds disabled - Monetarium testnet uses manual peer connections
-		DNSSeeds: []DNSSeed{},
+		// DNSSeeds is deprecated and unused; peer discovery is handled by the
+		// HTTPS seeders configured below.
+		DNSSeeds: nil,
 
 		// Chain parameters.
 		//
@@ -606,8 +607,8 @@ func TestNet3Params() *Params {
 		TreasuryVoteRequiredMultiplier: 3, // 60% yes votes required
 		TreasuryVoteRequiredDivisor:    5,
 
-		// HTTP seeders disabled - Monetarium testnet uses manual peer connections
-		seeders: []string{},
+		// HTTPS seeders used for peer discovery.
+		seeders: []string{"seed.testnet.monetarium.online"},
 
 		// SKA coin type configurations (fast testing values)
 		SKACoins: map[cointype.CoinType]*SKACoinConfig{

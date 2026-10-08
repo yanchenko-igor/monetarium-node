@@ -111,14 +111,14 @@ Describe 'install.ps1' {
             $content | Should -Match 'accountgaplimit=10'
         }
 
-        It 'writes a node config with rpc credentials, seed peers, and mining flag' {
+        It 'writes a node config with rpc credentials and mining flag, and no hardcoded peers' {
             Main
             $content = Get-Content -Path $Script:NodeConf -Raw
             $content | Should -Match 'rpcuser=monetarium'
             $content | Should -Match 'rpcpass='
-            $content | Should -Match 'addpeer=176.113.164.216:9508'
-            $content | Should -Match 'addpeer=134.249.62.43:9508'
-            $content | Should -Match 'addpeer=62.216.37.206:9508'
+            # Peer discovery is handled by the HTTPS seeders compiled into
+            # chaincfg, so no peers may be pinned in the generated config.
+            $content | Should -Not -Match '(?m)^addpeer='
             $content | Should -Match 'generate=false'
         }
 

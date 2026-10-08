@@ -3466,15 +3466,28 @@ func (s *server) rebroadcastHandler(ctx context.Context) {
 // the required services and adds the discovered peers to the address manager.
 // Each seeder is contacted in a separate goroutine.
 func (s *server) querySeeders(ctx context.Context) {
-	// Add peers discovered through DNS to the address manager.
+	// Add peers discovered through the HTTPS seeders to the address manager.
 	seeders := s.chainParams.Seeders()
 	errs := make(chan error, len(seeders))
+
+	// The seeders omit every address that is not an IP address unless the full
+	// set is explicitly requested, so onion addresses are only ever discovered
+	// when this node is actually able to reach them via Tor.  Requesting them
+	// unconditionally would just hand every clearnet-only node a set of peers
+	// it can never dial, which burns attempt counters in the address manager.
+	filters := []func(f *connmgr.HttpsSeederFilters){
+		connmgr.SeedFilterServices(defaultRequiredServices),
+	}
+	torEnabled := !cfg.NoOnion && (cfg.OnionProxy != "" || cfg.Proxy != "")
+	if torEnabled {
+		filters = append(filters, connmgr.SeedFilterFull())
+	}
+
 	seed := func(seeder string) {
 		ctx, cancel := context.WithTimeout(ctx, time.Minute)
 		defer cancel()
 
-		addrs, err := connmgr.SeedAddrs(ctx, seeder, mondDial,
-			connmgr.SeedFilterServices(defaultRequiredServices))
+		addrs, err := connmgr.SeedAddrs(ctx, seeder, mondDial, filters...)
 		if err != nil {
 			srvrLog.Infof("seeder '%s' error: %v", seeder, err)
 			errs <- err
