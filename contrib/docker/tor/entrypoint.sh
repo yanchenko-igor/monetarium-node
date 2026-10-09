@@ -59,13 +59,17 @@ tor_pid=$!
 echo "Started tor (pid $tor_pid)"
 
 # Forward SIGTERM/SIGINT to the node and tor for a graceful shutdown.
+# Wait for the node to exit before stopping tor and terminating PID 1,
+# so the database is closed cleanly.
 # shellcheck disable=SC2329 # Invoked by the signal trap.
 term_handler() {
     if [ -n "${node_pid:-}" ]; then
         kill -TERM "$node_pid" 2>/dev/null || true
+        wait "$node_pid" 2>/dev/null || true
     fi
     if [ -n "${tor_pid:-}" ]; then
         kill -TERM "$tor_pid" 2>/dev/null || true
+        wait "$tor_pid" 2>/dev/null || true
     fi
     exit 143
 }
