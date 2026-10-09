@@ -3502,7 +3502,8 @@ func (s *server) querySeeders(ctx context.Context) {
 
 		converted, err := wireToAddrmgrNetAddressesV2(addrs)
 		if err != nil || len(converted) == 0 {
-			srvrLog.Infof("seeder '%s' returned no usable addresses: %v", seeder, err)
+			srvrLog.Infof("seeder '%s' returned no usable addresses: %v",
+				seeder, err)
 			errs <- err
 			return
 		}
