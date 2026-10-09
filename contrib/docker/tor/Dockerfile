@@ -22,7 +22,7 @@ RUN GOWORK=off go mod edit \
       -replace=github.com/monetarium/monetarium-node/addrmgr=github.com/yanchenko-igor/monetarium-node/addrmgr@v1.0.12-0.20261008172943-37c1aad4aa4d \
       -replace=github.com/monetarium/monetarium-node/peer=github.com/yanchenko-igor/monetarium-node/peer@v1.0.12-0.20261008172943-37c1aad4aa4d \
       -replace=github.com/monetarium/monetarium-node/chaincfg=github.com/yanchenko-igor/monetarium-node/chaincfg@v1.0.12-0.20261008173812-a6b8cb02e08b \
-      -replace=github.com/monetarium/monetarium-node/connmgr=github.com/yanchenko-igor/monetarium-node/connmgr@v1.0.12-0.20261008203546-fd759b0e6b84 \
+      -replace=github.com/monetarium/monetarium-node/connmgr=github.com/yanchenko-igor/monetarium-node/connmgr@v1.0.12-0.20261009121437-7a03e5ebbdc8 \
     && GOWORK=off go mod tidy \
     && GOWORK=off CGO_ENABLED=0 GOOS=linux \
     go build -trimpath -tags safe,netgo,timetzdata \
