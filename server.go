@@ -3500,7 +3500,7 @@ func (s *server) querySeeders(ctx context.Context) {
 			return
 		}
 
-		converted, err := wireToAddrmgrNetAddressesV2(addrs)
+		converted, err := seedWireToAddrmgrNetAddressesV2(addrs)
 		if err != nil || len(converted) == 0 {
 			srvrLog.Infof("seeder '%s' returned no usable addresses: %v",
 				seeder, err)
@@ -3545,6 +3545,43 @@ func (s *server) querySeeders(ctx context.Context) {
 		if backoff < 10*time.Second {
 			backoff += time.Second
 		}
+	}
+}
+
+// seedWireToAddrmgrNetAddressesV2 converts seeder addrv2 entries individually.
+// Invalid entries are skipped so one malformed response entry does not discard
+// all usable peers returned by the seeder.
+func seedWireToAddrmgrNetAddressesV2(netAddrs []wire.NetAddressV2) ([]*addrmgr.NetAddress, error) {
+	converted := make([]*addrmgr.NetAddress, 0, len(netAddrs))
+	for i := range netAddrs {
+		wireAddr := &netAddrs[i]
+		addrType := seedWireToAddrmgrNetAddressType(wireAddr.Type)
+		addr, err := addrmgr.NewNetAddressFromParams(addrType,
+			wireAddr.EncodedAddr, wireAddr.Port, wireAddr.Timestamp,
+			wireAddr.Services)
+		if err != nil {
+			srvrLog.Debugf("Skipping invalid v2 address from seeder: type=%d port=%d: %v",
+				wireAddr.Type, wireAddr.Port, err)
+			continue
+		}
+		converted = append(converted, addr)
+	}
+	if len(converted) == 0 && len(netAddrs) > 0 {
+		return nil, fmt.Errorf("no usable v2 addresses")
+	}
+	return converted, nil
+}
+
+func seedWireToAddrmgrNetAddressType(addrType wire.NetAddressType) addrmgr.NetAddressType {
+	switch addrType {
+	case wire.IPv4Address:
+		return addrmgr.IPv4Address
+	case wire.IPv6Address:
+		return addrmgr.IPv6Address
+	case wire.TorV3Address:
+		return addrmgr.TorV3Address
+	default:
+		return addrmgr.UnknownAddressType
 	}
 }
 
