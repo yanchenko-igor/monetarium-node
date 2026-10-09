@@ -7,6 +7,7 @@ package connmgr
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base32"
 	"encoding/json"
 	"fmt"
@@ -32,9 +33,10 @@ const (
 // DialFunc is the signature of the Dialer function.
 type DialFunc func(context.Context, string, string) (net.Conn, error)
 
-// HttpsSeederFilters houses filter parameters for use when making a request to
-// an HTTPS seeder.  It can be configured via the various exported functions
-// that start with the prefix SeedFilter.
+// HttpsSeederFilters houses the parameters for use when making a request to an
+// HTTPS seeder.  Most of them are configured as query parameter filters via the
+// various exported functions that start with the prefix SeedFilter.  It also
+// carries the optional TLS configuration provided via SeedTLSConfig.
 type HttpsSeederFilters struct {
 	ipVersion    uint16
 	hasIPVersion bool
@@ -43,6 +45,7 @@ type HttpsSeederFilters struct {
 	services     wire.ServiceFlag
 	hasServices  bool
 	full         bool
+	tlsConfig    *tls.Config
 }
 
 // SeedFilterIPVersion configures a request to an HTTPS seeder to filter all
@@ -86,6 +89,16 @@ func SeedFilterServices(services wire.ServiceFlag) func(f *HttpsSeederFilters) {
 func SeedFilterFull() func(f *HttpsSeederFilters) {
 	return func(f *HttpsSeederFilters) {
 		f.full = true
+	}
+}
+
+// SeedTLSConfig configures a custom TLS configuration for the HTTPS request to
+// the seeder.  It does not affect the request query parameters and exists
+// primarily for callers that need to trust a custom certificate authority, such
+// as tests.  When it is not set, the system defaults are used.
+func SeedTLSConfig(config *tls.Config) func(f *HttpsSeederFilters) {
+	return func(f *HttpsSeederFilters) {
+		f.tlsConfig = config
 	}
 }
 
@@ -145,7 +158,8 @@ func SeedAddrs(ctx context.Context, seeder string, dialFn DialFunc, filters ...f
 	// Make the request.
 	client := &http.Client{
 		Transport: &http.Transport{
-			DialContext: dialFn,
+			DialContext:     dialFn,
+			TLSClientConfig: seederFilters.tlsConfig,
 		},
 	}
 	resp, err := client.Do(req)

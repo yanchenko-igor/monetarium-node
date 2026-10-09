@@ -12,16 +12,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
-	"fmt"
 	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,31 +25,15 @@ import (
 	"github.com/monetarium/monetarium-node/wire"
 )
 
-// testCert is a self-signed certificate that serves as both the TLS server
-// certificate and the trusted root for the HTTPS test servers below.
-var testCert tls.Certificate
+// newSeedTestTLS creates a self-signed certificate along with a pool that
+// trusts it.  The certificate serves as both the TLS server certificate and the
+// root for the HTTPS test servers below.
+func newSeedTestTLS(t *testing.T) (tls.Certificate, *x509.CertPool) {
+	t.Helper()
 
-// TestMain installs the test root certificate into the process-wide system root
-// pool.  SeedAddrs builds its own HTTP client with a TLS config it does not
-// expose, so the only way for the default client to trust a test server is to
-// make the root trusted by the system pool.
-//
-// The root pool is loaded once per process and caches on first use, so this has
-// to happen here rather than in an individual test.
-func TestMain(m *testing.M) {
-	if err := setupTestTLS(); err != nil {
-		fmt.Fprintf(os.Stderr, "unable to set up test TLS: %v\n", err)
-		os.Exit(1)
-	}
-	os.Exit(m.Run())
-}
-
-// setupTestTLS generates the test certificate and writes it to a temporary file
-// that the system root pool is then pointed at via SSL_CERT_FILE.
-func setupTestTLS() error {
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return err
+		t.Fatalf("unable to generate test key: %v", err)
 	}
 	template := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
@@ -71,34 +51,30 @@ func setupTestTLS() error {
 	der, err := x509.CreateCertificate(rand.Reader, template, template,
 		&privKey.PublicKey, privKey)
 	if err != nil {
-		return err
+		t.Fatalf("unable to create test certificate: %v", err)
 	}
 	leaf, err := x509.ParseCertificate(der)
 	if err != nil {
-		return err
+		t.Fatalf("unable to parse test certificate: %v", err)
 	}
-	testCert = tls.Certificate{
+	cert := tls.Certificate{
 		Certificate: [][]byte{der},
 		PrivateKey:  privKey,
 		Leaf:        leaf,
 	}
 
-	dir, err := os.MkdirTemp("", "mond-seedtest")
-	if err != nil {
-		return err
-	}
-	certPath := filepath.Join(dir, "ca.pem")
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
-		return err
-	}
-	return os.Setenv("SSL_CERT_FILE", certPath)
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+	return cert, pool
 }
 
 // newSeedTestServer returns an HTTPS test server that replies with the provided
-// JSON body along with a pointer to the query of the most recent request.
-func newSeedTestServer(t *testing.T, body string) (*httptest.Server, *url.Values) {
+// JSON body, a pointer to the query of the most recent request, and the pool of
+// roots that trusts it.
+func newSeedTestServer(t *testing.T, body string) (*httptest.Server, *url.Values, *x509.CertPool) {
 	t.Helper()
+
+	cert, roots := newSeedTestTLS(t)
 
 	var gotQuery url.Values
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter,
@@ -109,13 +85,19 @@ func newSeedTestServer(t *testing.T, body string) (*httptest.Server, *url.Values
 		_, _ = io.WriteString(w, body)
 	}))
 	server.TLS = &tls.Config{
-		Certificates: []tls.Certificate{testCert},
+		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	}
 	server.StartTLS()
 	t.Cleanup(server.Close)
 
-	return server, &gotQuery
+	return server, &gotQuery, roots
+}
+
+// seedTLSConfig returns a TLS configuration that trusts only the roots of the
+// provided test server.
+func seedTLSConfig(roots *x509.CertPool) func(f *HttpsSeederFilters) {
+	return SeedTLSConfig(&tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12})
 }
 
 // TestSeedAddrsFilters ensures the requested filters are forwarded to the seeder
@@ -167,15 +149,18 @@ func TestSeedAddrsFilters(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server, gotQuery := newSeedTestServer(t, respBody)
+			server, gotQuery, roots := newSeedTestServer(t, respBody)
 			addr := strings.TrimPrefix(server.URL, "https://")
 			dialer := &net.Dialer{}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 
+			filters := append([]func(f *HttpsSeederFilters){
+				seedTLSConfig(roots),
+			}, test.filters...)
 			addrs, err := SeedAddrs(ctx, addr, dialer.DialContext,
-				test.filters...)
+				filters...)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -202,14 +187,15 @@ func TestSeedAddrsFilters(t *testing.T) {
 func TestSeedAddrsReturnsTorV3OnionAddress(t *testing.T) {
 	const respBody = `{"host":"xtjxdav6eckeyyar6f2vutmbfdo4ygluxlcswlysnul4sqztjcesuiyd.onion:9508","services":1,"pver":13}`
 
-	server, _ := newSeedTestServer(t, respBody)
+	server, _, roots := newSeedTestServer(t, respBody)
 	addr := strings.TrimPrefix(server.URL, "https://")
 	dialer := &net.Dialer{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	addrs, err := SeedAddrs(ctx, addr, dialer.DialContext, SeedFilterFull())
+	addrs, err := SeedAddrs(ctx, addr, dialer.DialContext,
+		SeedFilterFull(), seedTLSConfig(roots))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

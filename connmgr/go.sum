@@ -12,8 +12,8 @@ github.com/monetarium/monetarium-node/crypto/blake256 v1.3.9 h1:xIDJwnIOH0KxMKQF
 github.com/monetarium/monetarium-node/crypto/blake256 v1.3.9/go.mod h1:+dUk+/kJYZCEfhySioeBRQD7l8yHVm3Q3g7Gd3lRjHk=
 github.com/monetarium/monetarium-node/crypto/rand v1.3.9 h1:xAS1pJ0JHIk6aimysbWMweZCwtiL7WDVUBvdFNxAdr0=
 github.com/monetarium/monetarium-node/crypto/rand v1.3.9/go.mod h1:3fOYD2Kid37bBjUuVa0lZEIcHE8pFs7D2eNz4vdTo88=
-github.com/yanchenko-igor/monetarium-node/wire v1.0.12-0.20261008172943-37c1aad4aa4d h1:JwMslFHVOanfRJu6gCbikd2EhjZhvr5WnaetiZa0iXc=
-github.com/yanchenko-igor/monetarium-node/wire v1.0.12-0.20261008172943-37c1aad4aa4d/go.mod h1:9JZ8oEbUCZu/F53GMBzHj/ZtDaibiHi7uAYa4FdRfM4=
+github.com/monetarium/monetarium-node/wire v1.3.9 h1:8jUZKFePXMwhf7U/4jqgG5AWjCMQ6qrHPComNXplqG8=
+github.com/monetarium/monetarium-node/wire v1.3.9/go.mod h1:UuMbS3RwaEaO4d7NKSRduo/ZJAWIObYm/ZzMNkcBBR4=
 golang.org/x/crypto v0.33.0 h1:IOBPskki6Lysi0lo9qQvbxiQ+FvsCC/YWOecCHAixus=
 golang.org/x/crypto v0.33.0/go.mod h1:bVdXmD7IV/4GdElGPozy6U7lWdRXA4qyRVGJV57uQ5M=
 golang.org/x/sys v0.30.0 h1:QjkSwP/36a20jFYWkSue1YwXzLmsV5Gfq7Eiy72C1uc=

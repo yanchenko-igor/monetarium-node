@@ -3290,18 +3290,25 @@ func (s *server) querySeeders(ctx context.Context) {
 			return
 		}
 
+		converted, err := wireToAddrmgrNetAddressesV2(addrs)
+		if err != nil || len(converted) == 0 {
+			srvrLog.Infof("seeder '%s' returned no usable addresses: %v",
+				seeder, err)
+			errs <- err
+			return
+		}
+
 		// Lookup the IP of the https seeder to use as the source of the
 		// seeded addresses.  In the incredibly rare event that the lookup
 		// fails after it just succeeded, fall back to using the first
 		// returned address as the source.
-		srcAddr := wireToAddrmgrNetAddress(addrs[0])
+		srcAddr := converted[0]
 		srcIPs, err := mondLookup(seeder)
 		if err == nil && len(srcIPs) > 0 {
 			const httpsPort = 443
 			srcAddr = addrmgr.NewNetAddressFromIPPort(srcIPs[0], httpsPort, 0)
 		}
-		addresses := wireToAddrmgrNetAddresses(addrs)
-		s.addrManager.AddAddresses(addresses, srcAddr)
+		s.addrManager.AddAddresses(converted, srcAddr)
 		errs <- nil
 	}
 
