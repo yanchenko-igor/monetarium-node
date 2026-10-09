@@ -4694,6 +4694,16 @@ func initListeners(ctx context.Context, params *chaincfg.Params, amgr *addrmgr.A
 		}
 	}
 
+	// Register the configured onion address separately so it doesn't suppress
+	// bound listener addresses or disable UPnP.
+	if cfg.OnionAddr != "" {
+		err := addLocalAddress(amgr, cfg.OnionAddr, services)
+		if err != nil {
+			amgrLog.Warnf("Skipping configured onion address %s: %v",
+				cfg.OnionAddr, err)
+		}
+	}
+
 	return listeners, nat, nil
 }
 

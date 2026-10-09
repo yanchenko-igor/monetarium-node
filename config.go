@@ -1375,7 +1375,8 @@ func loadConfig(appName string) (*config, []string, error) {
 				onionAddr)
 		}
 
-		cfg.ExternalIPs = append(cfg.ExternalIPs, onionAddr)
+		// Store the normalized address with port for server registration.
+		cfg.OnionAddr = onionAddr
 	}
 
 	// Warn if old testnet directory is present.

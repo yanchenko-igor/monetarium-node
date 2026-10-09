@@ -97,8 +97,7 @@ func TestAltDNSNamesWithArg(t *testing.T) {
 	os.Args = old
 }
 
-// TestOnionAddrConfig ensures the --onionaddr option is validated up front and
-// that a valid address is advertised through the same path as --externalip.
+// TestOnionAddrConfig ensures the --onionaddr option is validated up front.
 func TestOnionAddrConfig(t *testing.T) {
 	appName := filepath.Base(os.Args[0])
 	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
@@ -108,17 +107,17 @@ func TestOnionAddrConfig(t *testing.T) {
 		name      string
 		args      []string
 		wantErr   bool
-		wantAddrs []string
+		wantAddr  string
 		wantOnion bool
 	}{{
 		name:      "valid onion address with port",
 		args:      []string{"--onionaddr=" + wantExternal + ":9508"},
-		wantAddrs: []string{wantExternal + ":9508"},
+		wantAddr:  wantExternal + ":9508",
 		wantOnion: true,
 	}, {
 		name:      "valid onion address without port uses the default",
 		args:      []string{"--onionaddr=" + wantExternal},
-		wantAddrs: []string{wantExternal + ":9508"},
+		wantAddr:  wantExternal + ":9508",
 		wantOnion: true,
 	}, {
 		name:    "hostname without onion suffix",
@@ -150,16 +149,9 @@ func TestOnionAddrConfig(t *testing.T) {
 			t.Errorf("test %d %q: unexpected error: %v", i, test.name, err)
 			continue
 		}
-		if len(cfg.ExternalIPs) != len(test.wantAddrs) {
-			t.Errorf("test %d %q: unexpected external IPs -- got %v, want %v",
-				i, test.name, cfg.ExternalIPs, test.wantAddrs)
-			continue
-		}
-		for j, want := range test.wantAddrs {
-			if cfg.ExternalIPs[j] != want {
-				t.Errorf("test %d %q: unexpected external IP %d -- got %q, want %q",
-					i, test.name, j, cfg.ExternalIPs[j], want)
-			}
+		if cfg.OnionAddr != test.wantAddr {
+			t.Errorf("test %d %q: unexpected onion address -- got %q, want %q",
+				i, test.name, cfg.OnionAddr, test.wantAddr)
 		}
 		if test.wantOnion && !cfg.onionNetInfo.Reachable {
 			t.Errorf("test %d %q: expected onion network to be reachable", i,
