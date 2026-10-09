@@ -43,6 +43,7 @@ Create the data volume and run:
 $ docker volume create monetarium-tor-data
 $ docker run -d \
     --name monetarium-tor \
+    --stop-timeout 60 \
     --read-only \
     -v monetarium-tor-data:/home/monetarium \
     -p 9508:9508 \
@@ -82,6 +83,7 @@ Tor's hidden service port and the node's network must line up.  Run with:
 ```sh
 $ docker run -d \
     --name monetarium-tor-testnet \
+    --stop-timeout 60 \
     --read-only \
     -v monetarium-tor-testnet-data:/home/monetarium \
     -e ONION_P2P_PORT=19508 \
@@ -102,6 +104,10 @@ $ docker run -d \
 
 Any additional arguments passed to `docker run ... <image> ...` are forwarded to
 the node binary (`monetarium-node`).
+
+Use `--stop-timeout 60` when running the container so Docker gives the node
+enough time to close its database cleanly after sending SIGTERM. Compose users
+should set the equivalent `stop_grace_period: 60s`.
 
 ## Notes
 
